@@ -1,0 +1,46 @@
+{
+  "name": "Pinboard — Daily Ramp & Sticky-Note Focus",
+  "short_name": "Pinboard",
+  "description": "Tactile sticky-note planner, intelligent day coach, and focus workspace.",
+  "start_url": "/board",
+  "display": "standalone",
+  "background_color": "#faf9f6",
+  "theme_color": "#f59e0b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today's Ramp",
+      "short_name": "Today",
+      "description": "Open your daily schedule and workload meter",
+      "url": "/today",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Whiteboard",
+      "short_name": "Board",
+      "description": "View all sticky notes and backlog",
+      "url": "/board",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "AI Day Coach",
+      "short_name": "Coach",
+      "description": "Chat with your AI coach to plan your schedule",
+      "url": "/coach",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ]
+}

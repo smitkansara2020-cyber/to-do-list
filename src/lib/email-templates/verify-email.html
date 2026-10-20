@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirm Your Pinboard Account</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #faf9f6;
+      color: #18181b;
+    }
+    .wrapper {
+      width: 100%;
+      table-layout: fixed;
+      background-color: #faf9f6;
+      padding: 40px 0;
+    }
+    .container {
+      max-width: 540px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #e4e4e7;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      padding: 32px;
+      text-align: center;
+      border-bottom: 2px dashed #f59e0b;
+    }
+    .logo-pin {
+      display: inline-block;
+      width: 44px;
+      height: 44px;
+      line-height: 44px;
+      background: #f59e0b;
+      color: #09090b;
+      font-size: 22px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 16px 0 4px 0;
+      color: #78350f;
+      letter-spacing: -0.5px;
+    }
+    .content {
+      padding: 32px;
+    }
+    .greeting {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .body-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #52525b;
+      margin-bottom: 24px;
+    }
+    .btn-container {
+      text-align: center;
+      margin: 32px 0;
+    }
+    .btn-action {
+      display: inline-block;
+      background-color: #f59e0b;
+      color: #09090b;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    }
+    .sticky-card {
+      background-color: #fef9c3;
+      border-left: 4px solid #eab308;
+      border-radius: 6px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #713f12;
+      margin-bottom: 24px;
+    }
+    .footer {
+      background-color: #fafafa;
+      padding: 24px 32px;
+      text-align: center;
+      font-size: 12px;
+      color: #a1a1aa;
+      border-top: 1px solid #f4f4f5;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <div class="logo-pin">📌</div>
+        <div class="title">Pinboard</div>
+      </div>
+      <div class="content">
+        <div class="greeting">Welcome aboard! 🚀</div>
+        <p class="body-text">
+          Thank you for joining Pinboard — the tactile sticky-note planner and intelligent day coach.
+          To activate your workspace and start pinning your tasks, please confirm your email address:
+        </p>
+        <div class="btn-container">
+          <a href="{{ .ConfirmationURL }}" class="btn-action">Confirm Email Address</a>
+        </div>
+        <div class="sticky-card">
+          💡 <strong>Tip:</strong> If you did not sign up for Pinboard, you can safely ignore this email.
+        </div>
+        <p class="body-text" style="font-size: 12px; color: #a1a1aa;">
+          Or copy and paste this link into your browser:<br />
+          <span style="color: #6366f1; word-break: break-all;">{{ .ConfirmationURL }}</span>
+        </p>
+      </div>
+      <div class="footer">
+        &copy; 2026 Pinboard App. Crafted for clarity, focus, and calm productivity.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

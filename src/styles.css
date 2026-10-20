@@ -1,0 +1,276 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@source "../src";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-editorial: "Cormorant Garamond", Georgia, serif;
+  --font-hand: "Kalam", "Comic Sans MS", cursive;
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 10px);
+  --radius-3xl: calc(var(--radius) + 14px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-board: var(--board);
+  --color-ink: var(--ink);
+  --color-pin: var(--pin);
+  --color-note-yellow: var(--note-yellow);
+  --color-note-pink: var(--note-pink);
+  --color-note-mint: var(--note-mint);
+  --color-note-sky: var(--note-sky);
+  --color-note-lilac: var(--note-lilac);
+  --color-note-peach: var(--note-peach);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: #121212;
+  --foreground: #f4f2ee;
+  --card: #181818;
+  --card-foreground: #f4f2ee;
+  --popover: #181818;
+  --popover-foreground: #f4f2ee;
+  --primary: #dcd7cd;
+  --primary-foreground: #121212;
+  --secondary: #242424;
+  --secondary-foreground: #f4f2ee;
+  --muted: #222222;
+  --muted-foreground: #8e8b85;
+  --accent: #2c2c2c;
+  --accent-foreground: #f4f2ee;
+  --destructive: #ea4c4c;
+  --destructive-foreground: #ffffff;
+  --border: #282828;
+  --input: #1f1f1f;
+  --ring: #dcd7cd;
+  --chart-1: #dcd7cd;
+  --chart-2: #38bdf8;
+  --chart-3: #34d399;
+  --chart-4: #fbbf24;
+  --chart-5: #f472b6;
+  --sidebar: #141414;
+  --sidebar-foreground: #f4f2ee;
+  --sidebar-primary: #dcd7cd;
+  --sidebar-primary-foreground: #121212;
+  --sidebar-accent: #242424;
+  --sidebar-accent-foreground: #f4f2ee;
+  --sidebar-border: #282828;
+  --sidebar-ring: #dcd7cd;
+
+  --board: #121212;
+  --ink: #f4f2ee;
+  --pin: #ea4c4c;
+  --note-yellow: #655638; /* Ochre */
+  --note-pink: #604650;   /* Plum */
+  --note-mint: #40594C;   /* Forest */
+  --note-sky: #40566A;    /* Slate blue */
+  --note-lilac: #554966;  /* Violet */
+  --note-peach: #704C3D;  /* Terracotta */
+  --note-foreground: #F5F0E6;
+
+  --shadow-note: 0 1px 1px rgba(0, 0, 0, 0.4), 0 10px 22px -10px rgba(0, 0, 0, 0.6);
+  --shadow-note-lift:
+    0 2px 2px rgba(0, 0, 0, 0.4), 0 26px 40px -16px rgba(0, 0, 0, 0.7);
+  --shadow-soft: 0 20px 50px -24px rgba(0, 0, 0, 0.5);
+}
+
+.dark {
+  --radius: 0.5rem;
+  --background: #121212;
+  --foreground: #f4f2ee;
+  --card: #181818;
+  --card-foreground: #f4f2ee;
+  --popover: #181818;
+  --popover-foreground: #f4f2ee;
+  --primary: #dcd7cd;
+  --primary-foreground: #121212;
+  --secondary: #242424;
+  --secondary-foreground: #f4f2ee;
+  --muted: #222222;
+  --muted-foreground: #8e8b85;
+  --accent: #2c2c2c;
+  --accent-foreground: #f4f2ee;
+  --destructive: #ea4c4c;
+  --destructive-foreground: #ffffff;
+  --border: #282828;
+  --input: #1f1f1f;
+  --ring: #dcd7cd;
+  --chart-1: #dcd7cd;
+  --chart-2: #38bdf8;
+  --chart-3: #34d399;
+  --chart-4: #fbbf24;
+  --chart-5: #f472b6;
+  --sidebar: #141414;
+  --sidebar-foreground: #f4f2ee;
+  --sidebar-primary: #dcd7cd;
+  --sidebar-primary-foreground: #121212;
+  --sidebar-accent: #242424;
+  --sidebar-accent-foreground: #f4f2ee;
+  --sidebar-border: #282828;
+  --sidebar-ring: #dcd7cd;
+  --board: #121212;
+  --ink: #f4f2ee;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility whiteboard {
+  background-color: var(--board);
+  background-image:
+    radial-gradient(oklch(0.3 0.03 260 / 0.07) 1px, transparent 1px),
+    linear-gradient(180deg, oklch(1 0 0 / 0.6), transparent 40%);
+  background-size:
+    22px 22px,
+    100% 100%;
+}
+
+@utility shadow-note {
+  box-shadow: var(--shadow-note);
+}
+@utility shadow-note-lift {
+  box-shadow: var(--shadow-note-lift);
+}
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+@utility note-fold {
+  &::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, oklch(0 0 0 / 0.08) 50%, oklch(1 0 0 / 0.5) 50%);
+    border-top-left-radius: 6px;
+  }
+}
+
+/* Royal Atelier Gradient Design System */
+.font-editorial {
+  font-family: var(--font-editorial);
+  letter-spacing: -0.01em;
+}
+
+.bg-royal-espresso {
+  background: linear-gradient(135deg, #2E1F18 0%, #1E140F 50%, #120B08 100%);
+}
+
+.bg-royal-cognac {
+  background: linear-gradient(135deg, #4A3326 0%, #342117 50%, #20130D 100%);
+}
+
+.bg-royal-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 243, 235, 0.92) 100%);
+}
+.dark .bg-royal-card {
+  background: linear-gradient(145deg, rgba(45, 31, 24, 0.85) 0%, rgba(26, 17, 13, 0.92) 100%);
+}
+
+.border-royal {
+  border-color: rgba(197, 168, 128, 0.28);
+}
+.dark .border-royal {
+  border-color: rgba(212, 185, 150, 0.2);
+}
+
+.shadow-royal {
+  box-shadow: 0 10px 30px -10px rgba(42, 28, 20, 0.15), 0 20px 40px -15px rgba(20, 13, 9, 0.1);
+}
+.dark .shadow-royal {
+  box-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.5), 0 0 25px -5px rgba(197, 168, 128, 0.08);
+}
+
+/* Dashboard Entrance Animation (ANTIGRAVITY-HANDOFF) */
+/* Each viewport keeps its existing final position and dimensions. */
+.widget-reveal {
+  overflow: hidden;
+  overflow: clip;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Apply existing widget background, border, padding and shadow here. */
+.widget-surface {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Place this class on a wrapper around the actual sticky note.
+   Keep the note's existing rotation and appearance on the inner note. */
+.note-motion {
+  min-width: 0;
+}
+
+/* Add dashboard-preparing in the initial markup to prevent a first-frame flash.
+   The script removes it once the animation objects have been created. */
+.dashboard-preparing .widget-surface,
+.dashboard-preparing .note-motion {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-preparing .widget-surface,
+  .dashboard-preparing .note-motion {
+    visibility: visible;
+  }
+}
+
+
