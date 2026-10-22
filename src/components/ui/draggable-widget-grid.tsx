@@ -310,14 +310,12 @@ export function DraggableWidgetGrid<T extends WidgetItem = WidgetItem>({
                 "widget-reveal group/widget relative rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 isWide ? "md:col-span-2" : "col-span-1",
                 isDragging && "z-30",
+                typeof itemClassName === "function" ? itemClassName(item) : itemClassName,
               )}
             >
               <div
                 className={cn(
-                  "widget-surface flex flex-col w-full h-full rounded-2xl transition-all duration-200",
-                  typeof itemClassName === "function"
-                    ? itemClassName(item)
-                    : (itemClassName ?? "border bg-card text-card-foreground shadow-xs"),
+                  "widget-surface flex flex-col w-full h-full rounded-2xl transition-all duration-200 border bg-card text-card-foreground shadow-xs",
                   isDragging
                     ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-[1.02] shadow-2xl opacity-90 border-primary"
                     : "opacity-100 hover:shadow-md hover:border-border/90",

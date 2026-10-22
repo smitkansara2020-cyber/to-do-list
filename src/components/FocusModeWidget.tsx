@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Play,
   Pause,
@@ -22,14 +23,17 @@ import {
   Clock,
   SlidersHorizontal,
   GripVertical,
+  PictureInPicture2,
+  Target,
 } from "lucide-react";
 import { motion, useDragControls } from "motion/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { useTasks, useUpdateTask, useCompleteTask } from "@/hooks/use-data";
-import { type Task, noteBg } from "@/lib/tasks";
+import { type Task, noteBg, toISODate } from "@/lib/tasks";
 import { cn } from "@/lib/utils";
 import { getTheme, toggleSiteTheme, type Theme } from "@/lib/theme";
+import { FocusGoalsPopup } from "./FocusGoalsPopup";
 
 const PRESETS = [
   { label: "Pomodoro", minutes: 25 },
@@ -49,9 +53,40 @@ export function FocusModeWidget() {
     [allTasks],
   );
 
-  // Widget visibility & display mode: "closed" | "floating" | "fullscreen"
-  const [viewMode, setViewMode] = useState<"closed" | "floating" | "fullscreen">("closed");
+  // Widget visibility & display mode: "hidden" | "closed" | "floating" | "fullscreen"
+  const [viewMode, setViewMode] = useState<"hidden" | "closed" | "floating" | "fullscreen">(() => {
+    try {
+      const saved = localStorage.getItem("pinboard_focus_widget_mode");
+      if (saved === "hidden" || saved === "closed" || saved === "floating" || saved === "fullscreen") {
+        return saved as "hidden" | "closed" | "floating" | "fullscreen";
+      }
+    } catch {}
+    return "floating";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("pinboard_focus_widget_mode", viewMode);
+    } catch {}
+  }, [viewMode]);
+
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  // Goals popup state anchored across widget icon
+  const [showGoalsPopup, setShowGoalsPopup] = useState(false);
+
+  // Always-on-top desktop Document PiP window (stays visible when browser minimized)
+  const [pipWindow, setPipWindow] = useState<Window | null>(null);
+
+  // Session completion for today
+  const todayStr = useMemo(() => toISODate(new Date()), []);
+  const [sessionFinished, setSessionFinished] = useState(() => {
+    try {
+      return localStorage.getItem(`pinboard_session_finished_${toISODate(new Date())}`) === "true";
+    } catch {
+      return false;
+    }
+  });
 
   // Site-wide theme sync
   const [focusTheme, setFocusTheme] = useState<Theme>(getTheme);
@@ -382,11 +417,138 @@ export function FocusModeWidget() {
     setNewSubtaskTitle("");
   }
 
+  function handleFinishTodaySession() {
+    confetti({
+      particleCount: 100,
+      spread: 80,
+      origin: { y: 0.6 },
+    });
+    setIsRunning(false);
+    setSessionFinished(true);
+    try {
+      localStorage.setItem(`pinboard_session_finished_${todayStr}`, "true");
+    } catch {}
+    toast.success("Today's session finished! Outstanding work! 🏁🎉", {
+      description: "Great progress logged. You can take a break or start a bonus session anytime.",
+    });
+  }
+
+  const openDesktopPip = async () => {
+    if (pipWindow) {
+      pipWindow.close();
+      setPipWindow(null);
+      return;
+    }
+    if (typeof window === "undefined" || !("documentPictureInPicture" in window)) {
+      toast.info("Always-on-top desktop window is supported in Chrome & Edge browsers.");
+      return;
+    }
+    try {
+      const pip = await (window as any).documentPictureInPicture.requestWindow({
+        width: 360,
+        height: 250,
+      });
+
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          if (sheet.href) {
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = sheet.href;
+            pip.document.head.appendChild(link);
+          } else if (sheet.cssRules) {
+            const style = document.createElement("style");
+            for (const rule of Array.from(sheet.cssRules)) {
+              style.appendChild(document.createTextNode(rule.cssText));
+            }
+            pip.document.head.appendChild(style);
+          }
+        } catch {}
+      }
+
+      pip.document.documentElement.className = document.documentElement.className;
+      pip.document.body.className =
+        "bg-[#141414] text-[#f4f2ee] m-0 p-3 select-none overflow-hidden font-sans";
+
+      pip.addEventListener("pagehide", () => {
+        setPipWindow(null);
+      });
+
+      setPipWindow(pip);
+      toast.success("Focus timer popped out! Stays on top even when browser is minimized.");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not open desktop window.");
+    }
+  };
+
   // Format time strings
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const timeFormatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   const progressRatio = Math.max(0, 1 - timeLeft / (selectedMinutes * 60));
+
+  const pipPortal =
+    pipWindow &&
+    createPortal(
+      <div className="flex flex-col h-full justify-between bg-[#141414] text-[#f4f2ee] p-2 select-none font-sans">
+        <div className="flex items-center justify-between pb-2 border-b border-[#282828]">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span className="text-[11px] font-bold text-zinc-300 truncate max-w-[220px]">
+              {activeTask?.title || "Pinboard Focus"}
+            </span>
+          </div>
+          <button
+            onClick={() => pipWindow.close()}
+            className="text-zinc-400 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
+            title="Close desktop window"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center my-auto py-2">
+          <span className="font-mono text-4xl font-black text-amber-400 tracking-tight">
+            {timeFormatted}
+          </span>
+          <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mt-1">
+            {isRunning ? "Session Active" : `${selectedMinutes}m Focus Timer`}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 pt-2 border-t border-[#282828]">
+          <button
+            onClick={() => resetTimer()}
+            title="Reset Timer"
+            className="size-8 rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer"
+          >
+            <RotateCcw className="size-3.5" />
+          </button>
+          <button
+            onClick={togglePlay}
+            className={cn(
+              "h-8 px-4 rounded-lg text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer",
+              isRunning ? "bg-amber-600 hover:bg-amber-700" : "bg-amber-500 hover:bg-amber-600",
+            )}
+          >
+            {isRunning ? (
+              <Pause className="size-3 fill-current" />
+            ) : (
+              <Play className="size-3 fill-current ml-0.5" />
+            )}
+            <span>{isRunning ? "Pause" : "Start"}</span>
+          </button>
+          <button
+            onClick={() => addMinutes(5)}
+            title="Add 5 minutes"
+            className="h-8 px-2.5 rounded-lg border border-zinc-700 bg-zinc-800 text-xs text-zinc-300 hover:text-white cursor-pointer"
+          >
+            +5m
+          </button>
+        </div>
+      </div>,
+      pipWindow.document.body,
+    );
 
   // Dark Zen Linen theme is enforced across focus widget
   const isDark = true;
@@ -490,120 +652,204 @@ export function FocusModeWidget() {
   const knobX = 50 + 40 * Math.cos(knobAngleRad);
   const knobY = 50 + 40 * Math.sin(knobAngleRad);
 
+  // ---------------- HIDDEN LAUNCHER (Discrete Bottom-Right Trigger) ---------------- //
+  if (viewMode === "hidden") {
+    return (
+      <>
+        {pipWindow && pipPortal}
+        <button
+          onClick={() => setViewMode("floating")}
+          title="Show Focus Timer & Goals"
+          aria-label="Show Focus Timer & Goals"
+          className="fixed bottom-4 right-4 z-40 flex items-center gap-1.5 rounded-full bg-[#181818]/90 hover:bg-[#242424] border border-[#2e2e2e] text-[#dcd7cd] px-3 py-2 text-xs font-semibold shadow-xl transition-all hover:scale-105 active:scale-95 backdrop-blur-md cursor-pointer group"
+        >
+          <Timer className="size-4 text-amber-500 transition-transform group-hover:rotate-12" />
+          <span className="hidden sm:inline">Focus Timer</span>
+          {isRunning && (
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+          )}
+        </button>
+      </>
+    );
+  }
+
   // ---------------- CLOSED TRIGGER BADGE (Draggable Pill) ---------------- //
   if (viewMode === "closed") {
     return (
-      <motion.div
-        drag
-        dragMomentum={false}
-        onDragStart={() => {
-          isDraggingPillRef.current = true;
-        }}
-        onDragEnd={() => {
-          setTimeout(() => {
-            isDraggingPillRef.current = false;
-          }, 150);
-        }}
-        className="fixed bottom-5 right-5 z-40 touch-none cursor-grab active:cursor-grabbing"
-      >
-        <button
-          onClick={() => {
-            if (!isDraggingPillRef.current) {
-              setViewMode("floating");
-            }
+      <>
+        {pipWindow && pipPortal}
+        <motion.div
+          drag
+          dragMomentum={false}
+          onDragStart={() => {
+            isDraggingPillRef.current = true;
           }}
-          aria-label="Open Focus Mode"
-          className="flex items-center gap-2.5 rounded-full bg-[#181818] border border-[#282828] px-4 py-2.5 text-[#dcd7cd] font-semibold shadow-2xl hover:bg-[#242424] hover:border-[#383838] active:scale-95 transition-all group backdrop-blur-md"
+          onDragEnd={() => {
+            setTimeout(() => {
+              isDraggingPillRef.current = false;
+            }, 150);
+          }}
+          className="fixed bottom-5 right-5 z-40 touch-none cursor-grab active:cursor-grabbing flex items-center gap-1.5"
         >
-          <GripVertical className="size-4 opacity-60 text-zinc-400" />
-          <Timer className="size-5 text-[#dcd7cd] transition-transform group-hover:rotate-12" />
-          <span className="text-sm font-semibold tracking-wide">Focus Mode</span>
-          {isRunning && (
-            <span className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-xs font-mono font-bold text-emerald-400">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              {timeFormatted}
-            </span>
-          )}
-        </button>
-      </motion.div>
+          <button
+            onClick={() => {
+              if (!isDraggingPillRef.current) {
+                setViewMode("floating");
+              }
+            }}
+            aria-label="Open Focus Mode"
+            className="flex items-center gap-2.5 rounded-full bg-[#181818] border border-[#282828] px-4 py-2.5 text-[#dcd7cd] font-semibold shadow-2xl hover:bg-[#242424] hover:border-[#383838] active:scale-95 transition-all group backdrop-blur-md cursor-pointer"
+          >
+            <GripVertical className="size-4 opacity-60 text-zinc-400" />
+            <Timer className="size-5 text-[#dcd7cd] transition-transform group-hover:rotate-12" />
+            <span className="text-sm font-semibold tracking-wide">Focus Mode</span>
+            {isRunning && (
+              <span className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-xs font-mono font-bold text-emerald-400">
+                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {timeFormatted}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setViewMode("hidden")}
+            title="Hide Focus Widget"
+            className="size-8 rounded-full bg-[#181818] border border-[#282828] text-zinc-400 hover:text-rose-400 hover:bg-[#242424] flex items-center justify-center transition-colors shadow-lg cursor-pointer"
+          >
+            <X className="size-3.5" />
+          </button>
+        </motion.div>
+      </>
     );
   }
 
   // ---------------- MINIMIZED FLOATING WIDGET (Windows Desktop Style) ---------------- //
   if (viewMode === "floating") {
     return (
-      <motion.div
-        drag
-        dragControls={dragControls}
-        dragListener={false}
-        dragMomentum={false}
-        className="fixed bottom-5 right-5 z-50 w-84 rounded-2xl border border-[#282828] bg-[#181818] text-[#f4f2ee] shadow-2xl touch-none backdrop-blur-md"
-      >
-        {/* Widget Top Bar - Draggable across screen */}
-        <div
-          onPointerDown={(e) => dragControls.start(e)}
-          title="Drag anywhere on the screen"
-          className="flex items-center justify-between border-b border-[#282828] bg-[#141414] px-3.5 py-2.5 rounded-t-2xl cursor-grab active:cursor-grabbing select-none"
+      <>
+        {pipWindow && pipPortal}
+        <motion.div
+          drag
+          dragControls={dragControls}
+          dragListener={false}
+          dragMomentum={false}
+          className="fixed bottom-5 right-5 z-50 w-84 rounded-2xl border border-[#282828] bg-[#181818] text-[#f4f2ee] shadow-2xl touch-none backdrop-blur-md"
         >
-          <div className="flex items-center gap-2">
-            <GripVertical className="size-3.5 text-zinc-400" />
-            <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-              Focus Widget
-            </span>
-          </div>
+          {/* Goals Popup Window anchored across the icon */}
+          {showGoalsPopup && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              className="absolute right-0 bottom-[calc(100%+12px)] z-50 animate-in fade-in zoom-in-95 duration-150"
+            >
+              <FocusGoalsPopup
+                onClose={() => setShowGoalsPopup(false)}
+                onSelectTask={(id) => {
+                  setSelectedTaskId(id);
+                  setShowGoalsPopup(false);
+                }}
+                activeTaskId={activeTask?.id}
+                onFinishTodaySession={handleFinishTodaySession}
+                sessionFinished={sessionFinished}
+              />
+            </div>
+          )}
 
+          {/* Widget Top Bar - Draggable across screen */}
           <div
-            className="flex items-center gap-1"
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => dragControls.start(e)}
+            title="Drag anywhere on the screen"
+            className="flex items-center justify-between border-b border-[#282828] bg-[#141414] px-3.5 py-2.5 rounded-t-2xl cursor-grab active:cursor-grabbing select-none"
           >
-            {/* Subtask Flyout Toggle */}
-            <button
-              onClick={() => setShowSubtasksPanel(!showSubtasksPanel)}
-              title="Toggle checklist"
-              className={cn(
-                "p-1.5 rounded-md transition-colors",
-                isDark
-                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                  : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100",
-              )}
-            >
-              {showSubtasksPanel ? (
-                <ChevronDown className="size-3.5" />
-              ) : (
-                <ChevronUp className="size-3.5" />
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <GripVertical className="size-3.5 text-zinc-400" />
+              <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                Focus Widget
+              </span>
+            </div>
 
-            {/* Maximize to Fullscreen */}
-            <button
-              onClick={() => setViewMode("fullscreen")}
-              title="Maximize to Fullscreen Zen Mode"
-              className={cn(
-                "p-1.5 rounded-md transition-colors",
-                isDark
-                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                  : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100",
-              )}
+            <div
+              className="flex items-center gap-1"
+              onPointerDown={(e) => e.stopPropagation()}
             >
-              <Maximize2 className="size-3.5" />
-            </button>
+              {/* Desktop PiP Popout */}
+              <button
+                onClick={openDesktopPip}
+                title="Pop out over desktop (stays on top when browser is minimized)"
+                className={cn(
+                  "p-1.5 rounded-md transition-colors cursor-pointer",
+                  pipWindow
+                    ? "text-amber-400 bg-amber-500/20"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800",
+                )}
+              >
+                <PictureInPicture2 className="size-3.5" />
+              </button>
 
-            {/* Hide/Dock */}
-            <button
-              onClick={() => setViewMode("closed")}
-              title="Dock to bottom button"
-              className={cn(
-                "p-1.5 rounded-md transition-colors",
-                isDark
-                  ? "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                  : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100",
-              )}
-            >
-              <X className="size-3.5" />
-            </button>
+              {/* Goals Popup Icon */}
+              <button
+                onClick={() => setShowGoalsPopup((prev) => !prev)}
+                title="Today's Goals & Due Pending"
+                className={cn(
+                  "relative p-1.5 rounded-md transition-colors cursor-pointer",
+                  showGoalsPopup
+                    ? "text-amber-400 bg-amber-500/20"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800",
+                )}
+              >
+                <Target className="size-3.5" />
+                <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-amber-500" />
+              </button>
+
+              {/* Subtask Flyout Toggle */}
+              <button
+                onClick={() => setShowSubtasksPanel(!showSubtasksPanel)}
+                title="Toggle checklist"
+                className={cn(
+                  "p-1.5 rounded-md transition-colors cursor-pointer",
+                  showSubtasksPanel
+                    ? "text-amber-400 bg-amber-500/20"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800",
+                )}
+              >
+                {showSubtasksPanel ? (
+                  <ChevronDown className="size-3.5" />
+                ) : (
+                  <ChevronUp className="size-3.5" />
+                )}
+              </button>
+
+              {/* Maximize to Fullscreen */}
+              <button
+                onClick={() => setViewMode("fullscreen")}
+                title="Maximize to Fullscreen Zen Mode"
+                className="p-1.5 rounded-md transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+              >
+                <Maximize2 className="size-3.5" />
+              </button>
+
+              {/* Dock to Bottom Pill */}
+              <button
+                onClick={() => setViewMode("closed")}
+                title="Dock to bottom pill"
+                className="p-1.5 rounded-md transition-colors text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+              >
+                <Minimize2 className="size-3.5" />
+              </button>
+
+              {/* Cross Option to Hide Widget */}
+              <button
+                onClick={() => {
+                  setViewMode("hidden");
+                  setShowGoalsPopup(false);
+                }}
+                title="Hide Focus Widget"
+                className="p-1.5 rounded-md transition-colors text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 cursor-pointer"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
 
         {/* Progress Line */}
         <div className={cn("h-1 w-full overflow-hidden", isDark ? "bg-zinc-800" : "bg-zinc-100")}>
@@ -815,17 +1061,20 @@ export function FocusModeWidget() {
           )}
         </div>
       </motion.div>
+      </>
     );
   }
 
   // ---------------- DASHBOARD FOCUS MODE MODAL ---------------- //
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) setViewMode("closed");
-      }}
-    >
+    <>
+      {pipWindow && pipPortal}
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setViewMode("closed");
+        }}
+      >
       <div
         className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl border border-[#282828] bg-[#181818] text-[#f4f2ee] shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200"
       >
@@ -1339,5 +1588,6 @@ export function FocusModeWidget() {
       </main>
       </div>
     </div>
+    </>
   );
 }

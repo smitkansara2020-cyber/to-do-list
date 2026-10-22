@@ -6,7 +6,7 @@
 
 ### 🟢 Completed Features (In Your App Right Now)
 
-| # | Status | Feature | My Notes & Comments |
+| # | Status | Feature | My Notes & Comments |![alt text](image.png)
 | :-: | :---: | :--- | :--- |
 | **01** | ✅ | **Cloud Save & Authentication**: Full email sign-up/login with automatic offline queue and sync indicator | _[Add comment]_ |
 | **02** | ✅ | **Sticky Note Whiteboard**: 3-column Kanban board with colorful pastel sticky notes, pin heads, subtasks & filters | _[Add comment]_ |

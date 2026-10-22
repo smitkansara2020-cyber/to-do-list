@@ -8,6 +8,7 @@ import {
   Sparkles,
   Mail,
   Bell,
+  Timer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -128,6 +129,19 @@ export function AppShell() {
               setOpenAiCopilot(true);
             }}
           />
+
+          {/* Focus Timer & Goals Trigger */}
+          <button
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent("open-focus-mode", { detail: { mode: "floating" } }),
+              )
+            }
+            title="Focus Timer & Goals Widget"
+            className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-amber-500 transition-colors cursor-pointer"
+          >
+            <Timer className="size-4.5" />
+          </button>
 
           {/* Settings Gear */}
           <button
