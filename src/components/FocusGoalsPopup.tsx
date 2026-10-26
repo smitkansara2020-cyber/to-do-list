@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import confetti from "canvas-confetti";
 import {
   Sun,
@@ -11,6 +11,7 @@ import {
   X,
   Zap,
   ChevronDown,
+  ChevronUp,
   Target,
 } from "lucide-react";
 import {
@@ -103,6 +104,53 @@ export function FocusGoalsPopup({
 
   const hasDuePending = duePendingTasks.length > 0;
 
+  // Scroll refs and active item trackers for column 1 and column 2
+  const todaysScrollRef = useRef<HTMLDivElement>(null);
+  const dueScrollRef = useRef<HTMLDivElement>(null);
+
+  const [todaysScrollPos, setTodaysScrollPos] = useState(0);
+  const [dueScrollPos, setDueScrollPos] = useState(0);
+
+  const CARD_ITEM_HEIGHT = 208; // 200px card + gap/margin
+
+  function handleTodaysScroll(e: React.UIEvent<HTMLDivElement>) {
+    const top = e.currentTarget.scrollTop;
+    const idx = Math.round(top / CARD_ITEM_HEIGHT);
+    setTodaysScrollPos(idx);
+  }
+
+  function handleDueScroll(e: React.UIEvent<HTMLDivElement>) {
+    const top = e.currentTarget.scrollTop;
+    const idx = Math.round(top / CARD_ITEM_HEIGHT);
+    setDueScrollPos(idx);
+  }
+
+  function scrollTodays(direction: "up" | "down") {
+    if (todaysScrollRef.current) {
+      const next = direction === "down" ? todaysScrollPos + 1 : todaysScrollPos - 1;
+      const step = hasDuePending ? 1 : 2; // In 2-column grid, jump by row
+      const maxIdx = Math.ceil(todaysGoals.length / (hasDuePending ? 1 : 2)) - 1;
+      const clamped = Math.max(0, Math.min(maxIdx, next));
+      todaysScrollRef.current.scrollTo({
+        top: clamped * CARD_ITEM_HEIGHT,
+        behavior: "smooth",
+      });
+      setTodaysScrollPos(clamped);
+    }
+  }
+
+  function scrollDue(direction: "up" | "down") {
+    if (dueScrollRef.current) {
+      const next = direction === "down" ? dueScrollPos + 1 : dueScrollPos - 1;
+      const clamped = Math.max(0, Math.min(duePendingTasks.length - 1, next));
+      dueScrollRef.current.scrollTo({
+        top: clamped * CARD_ITEM_HEIGHT,
+        behavior: "smooth",
+      });
+      setDueScrollPos(clamped);
+    }
+  }
+
   function handleRollTaskToToday(task: Task) {
     updateTask.mutate({
       id: task.id,
@@ -150,8 +198,8 @@ export function FocusGoalsPopup({
       className={cn(
         "rounded-3xl border border-[#333] bg-[#161616]/98 backdrop-blur-2xl text-[#f4f2ee] shadow-2xl overflow-hidden transition-all duration-200 select-none",
         hasDuePending
-          ? "w-[92vw] sm:w-[820px] max-w-[95vw]"
-          : "w-[92vw] sm:w-[620px] max-w-[95vw]",
+          ? "w-[94vw] sm:w-[860px] max-w-[95vw]"
+          : "w-[92vw] sm:w-[680px] max-w-[95vw]",
       )}
     >
       {/* Top Header */}
@@ -199,9 +247,9 @@ export function FocusGoalsPopup({
 
       {/* Main Content Area */}
       {hasDuePending ? (
-        /* Condition A: Due pending tasks exist -> split into 2 columns (Today's Goal & Due Pending) + Monthly Goals column */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 max-h-[70vh] overflow-y-auto">
-          {/* Column 1: Today's Goal (shows 1 sticky note in view, scroll down for more) */}
+        /* CONDITION A: Due pending tasks exist -> split into 2 columns (Today's Goal & Due Pending) + Monthly Goals column */
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3.5 max-h-[75vh] overflow-y-auto">
+          {/* Column 1: Today's Goal - exactly 1 sticky note in view, scroll down for more */}
           <div className="flex flex-col min-w-0 bg-[#1c1c1c] rounded-2xl p-3 border border-[#2a2a2a]">
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2e2e2e]">
               <div className="flex items-center gap-1.5">
@@ -215,14 +263,19 @@ export function FocusGoalsPopup({
               </span>
             </div>
 
-            <div className="flex-1 max-h-[310px] overflow-y-auto space-y-3 pr-1.5 scroll-smooth snap-y snap-mandatory focus:outline-none">
+            {/* Exactly 1 sticky note visible at a time (height 208px, cards snap-start) */}
+            <div
+              ref={todaysScrollRef}
+              onScroll={handleTodaysScroll}
+              className="h-[208px] overflow-y-auto pr-1 scroll-smooth snap-y snap-mandatory focus:outline-none scrollbar-thin"
+            >
               {todaysGoals.length === 0 ? (
-                <div className="p-8 text-center text-xs text-zinc-500 italic">
+                <div className="h-full flex items-center justify-center p-4 text-center text-xs text-zinc-500 italic">
                   No goals scheduled for today.
                 </div>
               ) : (
                 todaysGoals.map((task) => (
-                  <div key={task.id} className="snap-start">
+                  <div key={task.id} className="snap-start mb-2 last:mb-0">
                     <PopupStickyNoteCard
                       task={task}
                       isActive={task.id === activeTaskId}
@@ -235,15 +288,36 @@ export function FocusGoalsPopup({
               )}
             </div>
 
+            {/* Scroll down option & controls for Today's Goal */}
             {todaysGoals.length > 1 && (
-              <div className="pt-2 text-center text-[10px] text-zinc-400 font-medium flex items-center justify-center gap-1">
-                <span>Scroll down to see more ({todaysGoals.length} notes)</span>
-                <ChevronDown className="size-3 text-amber-400 animate-bounce" />
+              <div className="pt-2 mt-auto border-t border-[#2a2a2a] flex items-center justify-between text-[10px] text-zinc-400 font-medium">
+                <span>
+                  Note {Math.min(todaysGoals.length, todaysScrollPos + 1)} of {todaysGoals.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => scrollTodays("up")}
+                    disabled={todaysScrollPos <= 0}
+                    className="p-1 rounded hover:bg-white/10 disabled:opacity-30 cursor-pointer"
+                    title="Previous note"
+                  >
+                    <ChevronUp className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => scrollTodays("down")}
+                    disabled={todaysScrollPos >= todaysGoals.length - 1}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 disabled:opacity-30 cursor-pointer"
+                    title="Scroll down to next note"
+                  >
+                    <span>Next</span>
+                    <ChevronDown className="size-3.5 animate-bounce" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Column 2: Due Pending (shows 1 sticky note in view, scroll down for more) */}
+          {/* Column 2: Due Pending - exactly 1 sticky note in view, scroll down for more */}
           <div className="flex flex-col min-w-0 bg-[#1c1c1c] rounded-2xl p-3 border border-rose-500/25">
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2e2e2e]">
               <div className="flex items-center gap-1.5">
@@ -257,9 +331,14 @@ export function FocusGoalsPopup({
               </span>
             </div>
 
-            <div className="flex-1 max-h-[310px] overflow-y-auto space-y-3 pr-1.5 scroll-smooth snap-y snap-mandatory focus:outline-none">
+            {/* Exactly 1 sticky note visible at a time (height 208px, cards snap-start) */}
+            <div
+              ref={dueScrollRef}
+              onScroll={handleDueScroll}
+              className="h-[208px] overflow-y-auto pr-1 scroll-smooth snap-y snap-mandatory focus:outline-none scrollbar-thin"
+            >
               {duePendingTasks.map((task) => (
-                <div key={task.id} className="snap-start">
+                <div key={task.id} className="snap-start mb-2 last:mb-0">
                   <PopupStickyNoteCard
                     task={task}
                     isOverdue
@@ -273,10 +352,31 @@ export function FocusGoalsPopup({
               ))}
             </div>
 
+            {/* Scroll down option & controls for Due Pending */}
             {duePendingTasks.length > 1 && (
-              <div className="pt-2 text-center text-[10px] text-rose-400 font-medium flex items-center justify-center gap-1">
-                <span>Scroll down to see more ({duePendingTasks.length} notes)</span>
-                <ChevronDown className="size-3 text-rose-400 animate-bounce" />
+              <div className="pt-2 mt-auto border-t border-[#2a2a2a] flex items-center justify-between text-[10px] text-rose-400 font-medium">
+                <span>
+                  Note {Math.min(duePendingTasks.length, dueScrollPos + 1)} of {duePendingTasks.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => scrollDue("up")}
+                    disabled={dueScrollPos <= 0}
+                    className="p-1 rounded hover:bg-white/10 disabled:opacity-30 cursor-pointer"
+                    title="Previous note"
+                  >
+                    <ChevronUp className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => scrollDue("down")}
+                    disabled={dueScrollPos >= duePendingTasks.length - 1}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 disabled:opacity-30 cursor-pointer"
+                    title="Scroll down to next note"
+                  >
+                    <span>Next</span>
+                    <ChevronDown className="size-3.5 animate-bounce" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -295,10 +395,11 @@ export function FocusGoalsPopup({
               </span>
             </div>
 
-            <div className="flex-1 max-h-[310px] overflow-y-auto space-y-2.5 pr-1.5 scroll-smooth focus:outline-none">
+            <div className="flex-1 h-[208px] overflow-y-auto space-y-2.5 pr-1 scroll-smooth focus:outline-none scrollbar-thin">
               {monthlyGoals.length === 0 ? (
-                <div className="p-8 text-center text-xs text-zinc-500 italic">
-                  No monthly goals active.
+                <div className="h-full flex flex-col items-center justify-center p-4 text-center text-xs text-zinc-500 italic">
+                  <p>No monthly goals active.</p>
+                  <p className="text-[10px] text-zinc-600 mt-1">Set targets from the Goals page</p>
                 </div>
               ) : (
                 monthlyGoals.map((goal) => (
@@ -313,16 +414,16 @@ export function FocusGoalsPopup({
             </div>
 
             {monthlyGoals.length > 2 && (
-              <div className="pt-2 text-center text-[10px] text-zinc-500 font-medium flex items-center justify-center gap-1">
-                <span>Scroll down to see more</span>
+              <div className="pt-2 mt-auto border-t border-[#2a2a2a] text-center text-[10px] text-zinc-400 font-medium flex items-center justify-center gap-1">
+                <span>Scroll down for more goals</span>
                 <ChevronDown className="size-3 text-amber-500" />
               </div>
             )}
           </div>
         </div>
       ) : (
-        /* Condition B: No due pending tasks -> compact popup, Today's Goal shows 2 sticky notes side by side! */
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3.5 max-h-[70vh] overflow-y-auto">
+        /* CONDITION B: No due pending tasks -> compact popup, Today's Goal shows 2 sticky notes side by side! */
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3.5 max-h-[75vh] overflow-y-auto">
           {/* Today's Goals (8 cols on desktop): Shows 2 sticky notes side by side! */}
           <div className="md:col-span-8 flex flex-col min-w-0 bg-[#1c1c1c] rounded-2xl p-3 border border-[#2a2a2a]">
             <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2e2e2e]">
@@ -337,31 +438,56 @@ export function FocusGoalsPopup({
               </span>
             </div>
 
-            <div className="flex-1 max-h-[310px] overflow-y-auto pr-1.5 scroll-smooth focus:outline-none">
+            {/* Viewport sized to display 1 row of 2 sticky notes side by side (height 208px), scroll down to see more */}
+            <div
+              ref={todaysScrollRef}
+              onScroll={handleTodaysScroll}
+              className="h-[208px] overflow-y-auto pr-1 scroll-smooth snap-y snap-mandatory focus:outline-none scrollbar-thin"
+            >
               {todaysGoals.length === 0 ? (
-                <div className="p-8 text-center text-xs text-zinc-500 italic">
+                <div className="h-full flex items-center justify-center p-4 text-center text-xs text-zinc-500 italic">
                   No goals scheduled for today.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {todaysGoals.map((task) => (
-                    <PopupStickyNoteCard
-                      key={task.id}
-                      task={task}
-                      isActive={task.id === activeTaskId}
-                      onSelect={() => onSelectTask(task.id)}
-                      onComplete={() => handleCompleteWithCelebration(task)}
-                      onToggleSubtask={handleToggleTaskSubtask}
-                    />
+                    <div key={task.id} className="snap-start">
+                      <PopupStickyNoteCard
+                        task={task}
+                        isActive={task.id === activeTaskId}
+                        onSelect={() => onSelectTask(task.id)}
+                        onComplete={() => handleCompleteWithCelebration(task)}
+                        onToggleSubtask={handleToggleTaskSubtask}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
+            {/* Scroll down option & controls for Today's Goal (Side by Side view) */}
             {todaysGoals.length > 2 && (
-              <div className="pt-2 text-center text-[10px] text-zinc-400 font-medium flex items-center justify-center gap-1">
-                <span>Scroll down to see more ({todaysGoals.length} notes)</span>
-                <ChevronDown className="size-3 text-amber-400 animate-bounce" />
+              <div className="pt-2 mt-auto border-t border-[#2a2a2a] flex items-center justify-between text-[10px] text-zinc-400 font-medium">
+                <span>
+                  Showing 2 of {todaysGoals.length} notes · Scroll down to see more
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => scrollTodays("up")}
+                    className="p-1 rounded hover:bg-white/10 cursor-pointer"
+                    title="Previous row"
+                  >
+                    <ChevronUp className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => scrollTodays("down")}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 cursor-pointer"
+                    title="Scroll down to see next notes"
+                  >
+                    <span>Scroll Down</span>
+                    <ChevronDown className="size-3.5 animate-bounce" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -380,10 +506,11 @@ export function FocusGoalsPopup({
               </span>
             </div>
 
-            <div className="flex-1 max-h-[310px] overflow-y-auto space-y-2.5 pr-1.5 scroll-smooth focus:outline-none">
+            <div className="flex-1 h-[208px] overflow-y-auto space-y-2.5 pr-1 scroll-smooth focus:outline-none scrollbar-thin">
               {monthlyGoals.length === 0 ? (
-                <div className="p-8 text-center text-xs text-zinc-500 italic">
-                  No monthly goals active.
+                <div className="h-full flex flex-col items-center justify-center p-4 text-center text-xs text-zinc-500 italic">
+                  <p>No monthly goals active.</p>
+                  <p className="text-[10px] text-zinc-600 mt-1">Set targets from the Goals page</p>
                 </div>
               ) : (
                 monthlyGoals.map((goal) => (
@@ -398,8 +525,8 @@ export function FocusGoalsPopup({
             </div>
 
             {monthlyGoals.length > 2 && (
-              <div className="pt-2 text-center text-[10px] text-zinc-500 font-medium flex items-center justify-center gap-1">
-                <span>Scroll down to see more</span>
+              <div className="pt-2 mt-auto border-t border-[#2a2a2a] text-center text-[10px] text-zinc-400 font-medium flex items-center justify-center gap-1">
+                <span>Scroll down for more goals</span>
                 <ChevronDown className="size-3 text-amber-500" />
               </div>
             )}
@@ -433,7 +560,7 @@ function PopupStickyNoteCard({
   return (
     <div
       className={cn(
-        "relative rounded-xl p-3 text-[#F5F0E6] shadow-md border transition-all flex flex-col justify-between min-h-[175px]",
+        "relative rounded-xl p-3 text-[#F5F0E6] shadow-md border transition-all flex flex-col justify-between h-[200px] shrink-0",
         noteBg[task.color] || "bg-[#202020]",
         isActive && "ring-2 ring-amber-400 shadow-amber-500/20",
         isOverdue && "border-rose-500/50",
@@ -467,27 +594,20 @@ function PopupStickyNoteCard({
         </div>
 
         {/* Title */}
-        <p className="font-hand text-base font-bold text-[#F5F0E6] leading-tight line-clamp-2 mt-0.5">
+        <p className="font-hand text-sm sm:text-base font-bold text-[#F5F0E6] leading-tight line-clamp-2 mt-0.5">
           {task.title}
         </p>
 
-        {/* Notes snippet */}
-        {task.notes && (
-          <p className="text-[11px] text-[#F5F0E6]/85 line-clamp-2 mt-1 font-sans">
-            {task.notes}
-          </p>
-        )}
-
-        {/* Mini Subtasks Checklist */}
-        {subtasks.length > 0 && (
-          <div className="mt-2 space-y-1 rounded bg-black/25 p-1.5 text-[10px]">
+        {/* Notes snippet or subtasks checklist */}
+        {subtasks.length > 0 ? (
+          <div className="mt-1.5 space-y-1 rounded bg-black/25 p-1.5 text-[10px]">
             <div className="flex items-center justify-between font-bold text-[#F5F0E6]/90">
               <span>Steps</span>
               <span>
                 {completedSubtasks}/{subtasks.length}
               </span>
             </div>
-            {subtasks.slice(0, 2).map((st) => (
+            {subtasks.slice(0, 1).map((st) => (
               <button
                 key={st.id}
                 type="button"
@@ -514,15 +634,19 @@ function PopupStickyNoteCard({
                 </span>
               </button>
             ))}
-            {subtasks.length > 2 && (
-              <p className="text-[9px] text-[#F5F0E6]/60">+{subtasks.length - 2} more</p>
+            {subtasks.length > 1 && (
+              <p className="text-[9px] text-[#F5F0E6]/60">+{subtasks.length - 1} more step(s)</p>
             )}
           </div>
-        )}
+        ) : task.notes ? (
+          <p className="text-[11px] text-[#F5F0E6]/85 line-clamp-2 mt-1 font-sans">
+            {task.notes}
+          </p>
+        ) : null}
       </div>
 
       {/* Action Footer */}
-      <div className="mt-3 pt-2 border-t border-black/20 flex items-center justify-between gap-1.5">
+      <div className="mt-2 pt-2 border-t border-black/20 flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-1">
           {isOverdue && onRollToday && (
             <button

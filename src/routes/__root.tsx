@@ -100,6 +100,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -126,13 +127,17 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
 
-  // Initialize site-wide theme on mount (default to dark Zen Linen)
+  // Initialize site-wide theme on mount (default to dark Zen Linen) & register PWA service worker
   useEffect(() => {
     const saved = localStorage.getItem("pinboard_theme") || "dark";
     if (saved === "light") {
       document.documentElement.classList.remove("dark");
     } else {
       document.documentElement.classList.add("dark");
+    }
+
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
   }, []);
 

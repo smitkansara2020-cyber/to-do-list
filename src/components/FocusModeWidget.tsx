@@ -77,6 +77,20 @@ export function FocusModeWidget() {
 
   // Always-on-top desktop Document PiP window (stays visible when browser minimized)
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
+  const [showPipGoals, setShowPipGoals] = useState(false);
+
+  // Outside click listener for Goals popup
+  useEffect(() => {
+    if (!showGoalsPopup) return;
+    const handleOutsideClick = (e: MouseEvent | PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".goals-popup-container") && !target.closest(".goals-trigger-btn")) {
+        setShowGoalsPopup(false);
+      }
+    };
+    window.addEventListener("pointerdown", handleOutsideClick);
+    return () => window.removeEventListener("pointerdown", handleOutsideClick);
+  }, [showGoalsPopup]);
 
   // Session completion for today
   const todayStr = useMemo(() => toISODate(new Date()), []);
@@ -481,6 +495,20 @@ export function FocusModeWidget() {
     }
   };
 
+  const togglePipGoals = () => {
+    setShowPipGoals((prev) => {
+      const next = !prev;
+      try {
+        if (next) {
+          pipWindow?.resizeTo(820, 520);
+        } else {
+          pipWindow?.resizeTo(360, 260);
+        }
+      } catch {}
+      return next;
+    });
+  };
+
   // Format time strings
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -490,63 +518,116 @@ export function FocusModeWidget() {
   const pipPortal =
     pipWindow &&
     createPortal(
-      <div className="flex flex-col h-full justify-between bg-[#141414] text-[#f4f2ee] p-2 select-none font-sans">
-        <div className="flex items-center justify-between pb-2 border-b border-[#282828]">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-            <span className="text-[11px] font-bold text-zinc-300 truncate max-w-[220px]">
-              {activeTask?.title || "Pinboard Focus"}
+      showPipGoals ? (
+        <div className="flex flex-col h-full bg-[#141414] text-[#f4f2ee] p-2 select-none font-sans overflow-hidden">
+          <div className="flex items-center justify-between pb-2 mb-1 border-b border-[#282828] shrink-0">
+            <button
+              onClick={togglePipGoals}
+              className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-semibold cursor-pointer py-1 px-2 rounded hover:bg-white/5"
+            >
+              <Timer className="size-3.5" />
+              <span>Back to Timer ({timeFormatted})</span>
+            </button>
+            <button
+              onClick={() => {
+                setShowPipGoals(false);
+                pipWindow.close();
+              }}
+              className="text-zinc-400 hover:text-rose-400 p-1 rounded hover:bg-white/10 cursor-pointer"
+              title="Close desktop window"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto">
+            <FocusGoalsPopup
+              onClose={togglePipGoals}
+              onSelectTask={(id) => {
+                setSelectedTaskId(id);
+                togglePipGoals();
+              }}
+              activeTaskId={activeTask?.id}
+              onFinishTodaySession={handleFinishTodaySession}
+              sessionFinished={sessionFinished}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col h-full justify-between bg-[#141414] text-[#f4f2ee] p-2 select-none font-sans">
+          <div className="flex items-center justify-between pb-2 border-b border-[#282828]">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="size-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span className="text-[11px] font-bold text-zinc-300 truncate max-w-[190px]">
+                {activeTask?.title || "Pinboard Focus"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={togglePipGoals}
+                className="text-zinc-400 hover:text-amber-400 p-1 rounded hover:bg-white/10 cursor-pointer"
+                title="Today's Goals & Due Pending (Click to view popup)"
+              >
+                <Target className="size-3.5" />
+              </button>
+              <button
+                onClick={() => pipWindow.close()}
+                className="text-zinc-400 hover:text-rose-400 p-1 rounded hover:bg-white/10 cursor-pointer"
+                title="Close desktop window"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center my-auto py-2">
+            <span className="font-mono text-4xl font-black text-amber-400 tracking-tight">
+              {timeFormatted}
+            </span>
+            <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mt-1">
+              {isRunning ? "Session Active" : `${selectedMinutes}m Focus Timer`}
             </span>
           </div>
-          <button
-            onClick={() => pipWindow.close()}
-            className="text-zinc-400 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer"
-            title="Close desktop window"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
 
-        <div className="flex flex-col items-center justify-center my-auto py-2">
-          <span className="font-mono text-4xl font-black text-amber-400 tracking-tight">
-            {timeFormatted}
-          </span>
-          <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold mt-1">
-            {isRunning ? "Session Active" : `${selectedMinutes}m Focus Timer`}
-          </span>
+          <div className="flex items-center justify-center gap-2 pt-2 border-t border-[#282828]">
+            <button
+              onClick={() => resetTimer()}
+              title="Reset Timer"
+              className="size-8 rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer"
+            >
+              <RotateCcw className="size-3.5" />
+            </button>
+            <button
+              onClick={togglePlay}
+              className={cn(
+                "h-8 px-4 rounded-lg text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer",
+                isRunning ? "bg-amber-600 hover:bg-amber-700" : "bg-amber-500 hover:bg-amber-600",
+              )}
+            >
+              {isRunning ? (
+                <Pause className="size-3 fill-current" />
+              ) : (
+                <Play className="size-3 fill-current ml-0.5" />
+              )}
+              <span>{isRunning ? "Pause" : "Start"}</span>
+            </button>
+            <button
+              onClick={() => addMinutes(5)}
+              title="Add 5 minutes"
+              className="h-8 px-2.5 rounded-lg border border-zinc-700 bg-zinc-800 text-xs text-zinc-300 hover:text-white cursor-pointer"
+            >
+              +5m
+            </button>
+            <button
+              onClick={togglePipGoals}
+              title="Today's & Due Goals"
+              className="h-8 px-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-xs text-amber-300 hover:bg-amber-500/20 flex items-center gap-1 cursor-pointer"
+            >
+              <Target className="size-3" />
+              <span>Goals</span>
+            </button>
+          </div>
         </div>
-
-        <div className="flex items-center justify-center gap-2 pt-2 border-t border-[#282828]">
-          <button
-            onClick={() => resetTimer()}
-            title="Reset Timer"
-            className="size-8 rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-300 hover:text-white flex items-center justify-center cursor-pointer"
-          >
-            <RotateCcw className="size-3.5" />
-          </button>
-          <button
-            onClick={togglePlay}
-            className={cn(
-              "h-8 px-4 rounded-lg text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer",
-              isRunning ? "bg-amber-600 hover:bg-amber-700" : "bg-amber-500 hover:bg-amber-600",
-            )}
-          >
-            {isRunning ? (
-              <Pause className="size-3 fill-current" />
-            ) : (
-              <Play className="size-3 fill-current ml-0.5" />
-            )}
-            <span>{isRunning ? "Pause" : "Start"}</span>
-          </button>
-          <button
-            onClick={() => addMinutes(5)}
-            title="Add 5 minutes"
-            className="h-8 px-2.5 rounded-lg border border-zinc-700 bg-zinc-800 text-xs text-zinc-300 hover:text-white cursor-pointer"
-          >
-            +5m
-          </button>
-        </div>
-      </div>,
+      ),
       pipWindow.document.body,
     );
 
@@ -739,7 +820,7 @@ export function FocusModeWidget() {
           {showGoalsPopup && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
-              className="absolute right-0 bottom-[calc(100%+12px)] z-50 animate-in fade-in zoom-in-95 duration-150"
+              className="goals-popup-container absolute right-0 bottom-[calc(100%+12px)] z-50 animate-in fade-in zoom-in-95 duration-150"
             >
               <FocusGoalsPopup
                 onClose={() => setShowGoalsPopup(false)}
@@ -772,26 +853,33 @@ export function FocusModeWidget() {
               className="flex items-center gap-1"
               onPointerDown={(e) => e.stopPropagation()}
             >
-              {/* Desktop PiP Popout */}
+              {/* Desktop PiP Popout (stays on top even when browser is minimized) */}
               <button
                 onClick={openDesktopPip}
-                title="Pop out over desktop (stays on top when browser is minimized)"
+                title={
+                  pipWindow
+                    ? "Desktop floating window active (Click to close)"
+                    : "Float over all windows & screen (Stays on top when site is minimized)"
+                }
                 className={cn(
-                  "p-1.5 rounded-md transition-colors cursor-pointer",
+                  "relative p-1.5 rounded-md transition-colors cursor-pointer",
                   pipWindow
                     ? "text-amber-400 bg-amber-500/20"
                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800",
                 )}
               >
                 <PictureInPicture2 className="size-3.5" />
+                {pipWindow && (
+                  <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                )}
               </button>
 
-              {/* Goals Popup Icon */}
+              {/* Goals Popup Icon - Small icon that triggers Today's & Due Goals popup */}
               <button
                 onClick={() => setShowGoalsPopup((prev) => !prev)}
-                title="Today's Goals & Due Pending"
+                title="Today's Goals & Due Pending (Click to toggle popup)"
                 className={cn(
-                  "relative p-1.5 rounded-md transition-colors cursor-pointer",
+                  "goals-trigger-btn relative p-1.5 rounded-md transition-colors cursor-pointer",
                   showGoalsPopup
                     ? "text-amber-400 bg-amber-500/20"
                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800",
